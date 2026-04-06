@@ -1,5 +1,15 @@
 server:
   port: 8081
+#  例如，你的文件结构如下：
+#  项目内部：src/main/resources/static/logo.png
+#  磁盘外部：/your-project/static/avatar.jpg
+#  浏览器访问方式：
+#  http://localhost:8080/logo.png
+#  http://localhost:8080/avatar.jpg
+spring:
+  web:
+    resources:
+      static-locations: classpath:/static/,file:${user.dir}/static/
 logging:
   level:
     com.hmall: debug

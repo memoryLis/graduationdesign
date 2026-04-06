@@ -10,5 +10,6 @@ hm:
     excludePaths:
       - /search/**
       - /users/login
+      - /users/register
       - /items/**
       - /hi

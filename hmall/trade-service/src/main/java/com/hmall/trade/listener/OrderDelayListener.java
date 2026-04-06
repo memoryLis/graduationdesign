@@ -22,14 +22,14 @@ import org.springframework.stereotype.Component;
  * @Create 2024/10/24 14:45
  * @Version jdk17.0
  */
-@Component
+// @Component
 @RequiredArgsConstructor
 public class OrderDelayListener {
     private final IOrderService orderService;
     private final PayClient payClient;
     @RabbitListener(bindings = @QueueBinding(
             value = @Queue(name = MQConstants.DELAY_QUEUE_NAME),
-            exchange = @Exchange(name = MQConstants.DELAY_EXCHANGE_NAME,delayed = "true"),
+            exchange = @Exchange(name = MQConstants.DELAY_EXCHANGE_NAME,delayed = "true"),//rabbitmq需要安装延迟插件
             key = MQConstants.DELAY_ROUTING_KEY
     ))
     public void listenOrderDelay(Long orderId) {

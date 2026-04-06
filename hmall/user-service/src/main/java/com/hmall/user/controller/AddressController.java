@@ -12,10 +12,7 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -58,4 +55,27 @@ public class AddressController {
         // 3.转vo
         return BeanUtils.copyList(list, AddressDTO.class);
     }
+    /**
+     * 添加收货地址
+     */
+    @PostMapping("/addAddress")
+    public void addAddress(@RequestBody AddressDTO address){
+        Long userId = UserContext.getUser();
+        Address addressPO = BeanUtils.copyBean(address, Address.class);
+        addressPO.setUserId(userId);
+        addressService.save(addressPO);
+    }
+    /**
+     * 修改收货地址
+     */
+      @PostMapping("/updateAddress")
+        public void updateAddress(@RequestBody AddressDTO address){
+        Long userId = UserContext.getUser();
+        Address addressPO = BeanUtils.copyBean(address, Address.class);
+        addressPO.setUserId(userId);
+        addressService.updateById(addressPO);
+    }
+
+
+
 }

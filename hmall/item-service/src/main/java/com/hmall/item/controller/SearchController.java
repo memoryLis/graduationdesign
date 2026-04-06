@@ -4,6 +4,7 @@ package com.hmall.item.controller;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hmall.common.domain.PageDTO;
+import com.hmall.item.ItemConstant;
 import com.hmall.item.domain.dto.ItemDTO;
 import com.hmall.item.domain.po.Item;
 import com.hmall.item.domain.query.ItemPageQuery;
@@ -14,6 +15,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @Api(tags = "搜索相关接口")
 @RestController
@@ -36,5 +39,11 @@ public class SearchController {
                 .page(query.toMpPage("update_time", false));
         // 封装并返回
         return PageDTO.of(result, ItemDTO.class);
+    }
+
+    @ApiOperation("获取商品种类列表")
+    @GetMapping("/categories")
+    public List<String> getCategories() {
+        return ItemConstant.CATEGORY_LIST;
     }
 }

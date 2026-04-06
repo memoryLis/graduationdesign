@@ -22,6 +22,12 @@ import org.springframework.stereotype.Component;
 public class PayStatusListener {
     private final IOrderService orderService;
 
+    /**
+     * @Exchange(name = "pay.direct", type = ExchangeTypes.DIRECT)  // direct 类型（当前默认）
+     * @Exchange(name = "pay.topic", type = ExchangeTypes.TOPIC)     // topic 类型
+     * @Exchange(name = "pay.fanout", type = ExchangeTypes.FANOUT)   // fanout 类型
+     * @param orderId
+     */
     @RabbitListener(bindings = @QueueBinding(
             value = @Queue(name = "trade.pay.success.direct"),
             exchange = @Exchange(name = "pay.direct"),

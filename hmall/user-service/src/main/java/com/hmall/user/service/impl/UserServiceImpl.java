@@ -7,6 +7,7 @@ import com.hmall.common.exception.ForbiddenException;
 import com.hmall.common.utils.UserContext;
 import com.hmall.user.config.JwtProperties;
 import com.hmall.user.domain.dto.LoginFormDTO;
+import com.hmall.user.domain.dto.RegisterFormDTO;
 import com.hmall.user.domain.po.User;
 import com.hmall.user.domain.vo.UserLoginVO;
 import com.hmall.user.enums.UserStatus;
@@ -18,6 +19,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
+
+import java.time.LocalDateTime;
 
 /**
  * <p>
@@ -59,6 +62,33 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         // 5.生成TOKEN
         String token = jwtTool.createToken(user.getId(), jwtProperties.getTokenTTL());
         // 6.封装VO返回
+        UserLoginVO vo = new UserLoginVO();
+        vo.setUserId(user.getId());
+        vo.setUsername(user.getUsername());
+        vo.setBalance(user.getBalance());
+        vo.setToken(token);
+        return vo;
+    }
+
+    @Override
+    public UserLoginVO register(RegisterFormDTO registerDTO) {
+        // 1.检查用户名是否已存在
+        long count = lambdaQuery().eq(User::getUsername, registerDTO.getUsername()).count();
+        if (count > 0) {
+            throw new BadRequestException("用户名已存在");
+        }
+        // 2.创建用户
+        User user = new User();
+        user.setUsername(registerDTO.getUsername());
+        user.setPassword(registerDTO.getPassword()); // 明文存储，与登录逻辑一致
+        user.setPhone(registerDTO.getPhone());
+        user.setStatus(UserStatus.NORMAL);
+        user.setBalance(100000); // 默认余额1000元（单位：分）
+        user.setCreateTime(LocalDateTime.now());
+        user.setUpdateTime(LocalDateTime.now());
+        save(user);
+        // 3.生成TOKEN并返回
+        String token = jwtTool.createToken(user.getId(), jwtProperties.getTokenTTL());
         UserLoginVO vo = new UserLoginVO();
         vo.setUserId(user.getId());
         vo.setUsername(user.getUsername());

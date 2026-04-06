@@ -1,5 +1,6 @@
 package com.hmall.user.controller;
 import com.hmall.user.domain.dto.LoginFormDTO;
+import com.hmall.user.domain.dto.RegisterFormDTO;
 import com.hmall.user.domain.vo.UserLoginVO;
 import com.hmall.user.service.IUserService;
 import io.swagger.annotations.Api;
@@ -22,6 +23,12 @@ public class UserController {
     @PostMapping("login")
     public UserLoginVO login(@RequestBody @Validated LoginFormDTO loginFormDTO){
         return userService.login(loginFormDTO);
+    }
+
+    @ApiOperation("用户注册接口")
+    @PostMapping("register")
+    public UserLoginVO register(@RequestBody @Validated RegisterFormDTO registerFormDTO){
+        return userService.register(registerFormDTO);
     }
 
     @ApiOperation("扣减余额")

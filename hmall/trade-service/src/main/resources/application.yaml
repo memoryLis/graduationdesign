@@ -7,11 +7,19 @@ logging:
     dateformat: HH:mm:ss:SSS
   file:
     path: "logs/${spring.application.name}"
+
+spring:
+  rabbitmq:
+    host: 192.168.40.66
+    port: 5672
+    username: admin
+    password: password123
+    virtual-host: /
 knife4j:
   enable: true
   openapi:
-    title: 黑马商城交易接口文档
-    description: "黑马商城交易接口文档"
+    title: 小楼商城交易接口文档
+    description: "小楼商城交易接口文档"
     email: zhanghuyi@itcast.cn
     concat: 虎哥
     url: https://www.itcast.cn

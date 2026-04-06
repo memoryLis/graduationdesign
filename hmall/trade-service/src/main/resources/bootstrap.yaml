@@ -13,3 +13,6 @@ spring:
           - data-id: shared-jdbc.yaml
 #          - data-id: shared-seata.yaml
 #          - data-id: shared-rabbitmq.yaml
+
+
+# rabbitmq : 账号admin  密码 : password123

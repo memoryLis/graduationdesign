@@ -25,4 +25,6 @@ public class AddressDTO {
     private Integer isDefault;
     @ApiModelProperty("备注")
     private String notes;
+    @ApiModelProperty("用户id")
+    private Long userId;
 }
