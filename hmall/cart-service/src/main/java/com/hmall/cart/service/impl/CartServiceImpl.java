@@ -83,28 +83,7 @@ public class CartServiceImpl extends ServiceImpl<CartMapper, Cart> implements IC
     private void handleCartItems(List<CartVO> vos) {
         // 1.获取商品id
         Set<Long> itemIds = vos.stream().map(CartVO::getItemId).collect(Collectors.toSet());
-        //从注册中心获取服务
-      /*  List<ServiceInstance> instances = discoveryClient.getInstances("item-service");
-        if(CollUtil.isEmpty(instances)){
-            return;
-        }
-        ServiceInstance serviceInstance = instances.get(RandomUtil.randomInt(instances.size()));
-        URI uri = serviceInstance.getUri();
 
-
-        // 2.查询商品
-        ResponseEntity<List<ItemDTO>> responseEntity = restTemplate.exchange(
-                uri+"/items?ids={ids}",
-                HttpMethod.GET,
-                null,
-                new ParameterizedTypeReference<List<ItemDTO>>() {
-                },
-                Map.of("ids", CollUtil.join(itemIds, ","))
-        );
-        if(!responseEntity.getStatusCode().is2xxSuccessful()){
-            return;
-        }*/
-     /*   List<ItemDTO> items = responseEntity.getBody();*/
         List<ItemDTO> items = itemClient.queryItemsByIds(itemIds);
         if (CollUtils.isEmpty(items)) {
             return;

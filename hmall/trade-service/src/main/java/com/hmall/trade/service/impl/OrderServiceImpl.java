@@ -5,10 +5,15 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmall.api.client.CartClient;
 import com.hmall.api.client.ItemClient;
+import com.hmall.api.client.UserClient;
+import com.hmall.api.dto.AddressDTO;
 import com.hmall.api.dto.ItemDTO;
 import com.hmall.api.dto.OrderDetailDTO;
 import com.hmall.api.dto.OrderFormDTO;
+import com.hmall.api.vo.OrderItemDetailVO;
+import com.hmall.api.vo.OrderPayDetailVO;
 import com.hmall.common.exception.BadRequestException;
+import com.hmall.common.utils.BeanUtils;
 import com.hmall.common.utils.UserContext;
 import com.hmall.trade.constants.MQConstants;
 import com.hmall.trade.domain.po.Order;
@@ -51,6 +56,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
 
     private final IOrderDetailService detailService;
     private final CartClient cartClient;
+    private final UserClient userClient;
     private final RabbitTemplate rabbitTemplate;
 
     @Override
@@ -84,7 +90,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         save(order);
 
         // 2.保存订单详情
-        List<OrderDetail> details = buildDetails(order.getId(), items, itemNumMap);
+        List<OrderDetail> details = buildDetails(order.getId(), orderFormDTO.getAddressId(), items, itemNumMap);
         detailService.saveBatch(details);
 
         // 3.清理购物车商品
@@ -96,7 +102,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         } catch (Exception e) {
             throw new RuntimeException("库存不足！");
         }
-        //发送延迟消息，检测订单的支付状态
+        //发送延迟消息，检测订单的支付状态，这里不行。
         rabbitTemplate.convertAndSend(MQConstants.DELAY_EXCHANGE_NAME, MQConstants.DELAY_ROUTING_KEY, order.getId(),
                 new MessagePostProcessor() {
                     @Override
@@ -139,7 +145,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
 
     }
 
-    private List<OrderDetail> buildDetails(Long orderId, List<ItemDTO> items, Map<Long, Integer> numMap) {
+    private List<OrderDetail> buildDetails(Long orderId, Long addressId, List<ItemDTO> items, Map<Long, Integer> numMap) {
         List<OrderDetail> details = new ArrayList<>(items.size());
         for (ItemDTO item : items) {
             OrderDetail detail = new OrderDetail();
@@ -149,9 +155,48 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
             detail.setNum(numMap.get(item.getId()));
             detail.setItemId(item.getId());
             detail.setImage(item.getImage());
+            detail.setAddressId(addressId);
             detail.setOrderId(orderId);
             details.add(detail);
         }
         return details;
+    }
+
+    @Override
+    public OrderPayDetailVO queryPayOrderDetail(Long orderId) {
+        Long userId = UserContext.getUser();
+        Order order = lambdaQuery()
+                .eq(Order::getId, orderId)
+                .eq(Order::getUserId, userId)
+                .one();
+        if (order == null) {
+            throw new BadRequestException("订单不存在");
+        }
+
+        List<OrderDetail> details = detailService.lambdaQuery()
+                .eq(OrderDetail::getOrderId, orderId)
+                .list();
+
+        OrderPayDetailVO result = new OrderPayDetailVO();
+        result.setOrderId(order.getId());
+        result.setUserId(order.getUserId());
+        result.setTotalFee(order.getTotalFee());
+        result.setPaymentType(order.getPaymentType());
+        result.setOrderStatus(order.getStatus());
+        result.setPayTime(order.getPayTime());
+        result.setCreateTime(order.getCreateTime());
+        Long addressId = details.isEmpty() ? null : details.get(0).getAddressId();
+        if (addressId != null) {
+            AddressDTO address = userClient.queryAddressById(addressId);
+            result.setAddress(address);
+        }
+
+        List<OrderItemDetailVO> detailVOList = details.stream().map(d -> {
+            OrderItemDetailVO detailVO = BeanUtils.copyBean(d, OrderItemDetailVO.class);
+            detailVO.setItemId(d.getItemId());
+            return detailVO;
+        }).collect(Collectors.toList());
+        result.setDetails(detailVOList);
+        return result;
     }
 }

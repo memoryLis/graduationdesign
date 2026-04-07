@@ -1,8 +1,12 @@
 package com.hmall.pay.controller;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hmall.api.dto.PayOrderDTO;
+import com.hmall.api.vo.OrderPayDetailVO;
+import com.hmall.common.domain.PageDTO;
 import com.hmall.common.exception.BizIllegalException;
 import com.hmall.common.utils.BeanUtils;
+import com.hmall.common.utils.UserContext;
 import com.hmall.pay.domain.dto.PayApplyDTO;
 import com.hmall.pay.domain.dto.PayOrderFormDTO;
 import com.hmall.pay.domain.po.PayOrder;
@@ -15,8 +19,6 @@ import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 @Api(tags = "支付相关接口")
 @RestController
 @RequestMapping("pay-orders")
@@ -27,10 +29,24 @@ public class PayController {
 
     @ApiOperation("查询支付单")
     @GetMapping
-    public List<PayOrderVO> queryPayOrders(){
-        return BeanUtils.copyList(payOrderService.list(), PayOrderVO.class);
+    public PageDTO<PayOrderVO> queryPayOrders( @RequestParam( defaultValue = "1") Long current, @RequestParam(defaultValue = "10") Long size){
+        Long userId = UserContext.getUser();
+        Page<PayOrder> page = payOrderService.lambdaQuery()
+                .eq(PayOrder::getBizUserId, userId)
+                .orderByDesc(PayOrder::getCreateTime)
+                .page(new Page<>(current, size));
+        return PageDTO.of(page, PayOrderVO.class);
     }
 
+    /**
+     * 根据支付单ID查询到对应的支付详情
+     * @return
+     */
+    @GetMapping("/getPayOrderDetail")
+    public OrderPayDetailVO getPayOrderDetail(@RequestParam Long id){
+        //id是支付订单号
+        return payOrderService.getPayOrderDetail(id);
+    }
     @ApiOperation("生成支付单")
     @PostMapping
     public String applyPayOrder(@RequestBody PayApplyDTO applyDTO){

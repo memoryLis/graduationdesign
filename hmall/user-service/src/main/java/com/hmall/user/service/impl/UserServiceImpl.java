@@ -102,7 +102,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         log.info("开始扣款");
         // 1.校验密码
         User user = getById(UserContext.getUser());
-        if(user == null || !passwordEncoder.matches(pw, user.getPassword())){
+        if(user == null || user.getPassword().equals(pw)){
             // 密码错误
             throw new BizIllegalException("用户密码错误");
         }

@@ -27,13 +27,12 @@ public class DefaultFeignConfig {
      *
      * @return
      */
-    // @Bean
+    @Bean
     public RequestInterceptor userinfoRequestInterceptor() {
         return new RequestInterceptor() {
             @Override
             public void apply(RequestTemplate requestTemplate) {
-                // Long userId = UserContext.getUser();
-                Long userId = 66666l;
+                 Long userId = UserContext.getUser();
                 if (userId != null) {
                     requestTemplate.header("user-info", userId.toString());
                 }

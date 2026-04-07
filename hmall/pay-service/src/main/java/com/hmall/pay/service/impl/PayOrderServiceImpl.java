@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmall.api.client.TradeClient;
 import com.hmall.api.client.UserClient;
-import com.hmall.api.po.Order;
+import com.hmall.api.vo.OrderPayDetailVO;
 import com.hmall.common.exception.BizIllegalException;
 import com.hmall.common.utils.BeanUtils;
 import com.hmall.common.utils.UserContext;
@@ -33,11 +33,9 @@ import java.time.LocalDateTime;
 @Service
 @RequiredArgsConstructor
 public class PayOrderServiceImpl extends ServiceImpl<PayOrderMapper, PayOrder> implements IPayOrderService {
-    private final  RabbitTemplate rabbitTemplate;
-
      private final  TradeClient tradeClient;
     private final UserClient userClient;
-
+   private final RabbitTemplate rabbitTemplate;
     @Override
     public String applyPayOrder(PayApplyDTO applyDTO) {
         // 1.幂等性校验
@@ -47,7 +45,7 @@ public class PayOrderServiceImpl extends ServiceImpl<PayOrderMapper, PayOrder> i
     }
 
     @Override
-    @Transactional
+    @Transactional //应该使用塞seata
     public void tryPayOrderByBalance(PayOrderFormDTO payOrderFormDTO) {
         // 1.查询支付单
         PayOrder po = getById(payOrderFormDTO.getId());
@@ -55,16 +53,36 @@ public class PayOrderServiceImpl extends ServiceImpl<PayOrderMapper, PayOrder> i
         if(!PayStatus.WAIT_BUYER_PAY.equalsValue(po.getStatus())){
             // 订单不是未支付，状态异常
             throw new BizIllegalException("交易已支付或关闭！");
-        }
+         }
         // 3.尝试扣减余额
-       userClient.deductMoney(payOrderFormDTO.getPw(), po.getAmount());
+        userClient.deductMoney(payOrderFormDTO.getPw(), po.getAmount());
         // 4.修改支付单状态
         boolean success = markPayOrderSuccess(payOrderFormDTO.getId(), LocalDateTime.now());
         if (!success) {
             throw new BizIllegalException("交易已支付或关闭！");
         }
-     /*   // 5.修改订单状态
-        rabbitTemplate.convertAndSend("pay.direct","pay.success",po.getBizOrderNo());*/
+
+
+    }
+
+    /**
+     * 根据id查找订单详情
+     * @param id
+     * @return
+     */
+    @Override
+    public OrderPayDetailVO getPayOrderDetail(Long id) {
+        PayOrder payOrder = getById(id);
+        if(payOrder == null){
+            throw new RuntimeException("支付单不存在！");
+        }
+        if (!UserContext.getUser().equals(payOrder.getBizUserId())) {
+            throw new BizIllegalException("无权查看该支付单");
+        }
+        //拿到orderId
+        Long orderId = payOrder.getBizOrderNo();
+        return tradeClient.getPayOrderDetail(orderId);
+
 
     }
 
@@ -72,6 +90,7 @@ public class PayOrderServiceImpl extends ServiceImpl<PayOrderMapper, PayOrder> i
         return lambdaUpdate()
                 .set(PayOrder::getStatus, PayStatus.TRADE_SUCCESS.getValue())
                 .set(PayOrder::getPaySuccessTime, successTime)
+                .set(PayOrder::getUpdateTime, successTime)
                 .eq(PayOrder::getId, id)
                 // 支付状态的乐观锁判断
                 .in(PayOrder::getStatus, PayStatus.NOT_COMMIT.getValue(), PayStatus.WAIT_BUYER_PAY.getValue())
@@ -86,7 +105,7 @@ public class PayOrderServiceImpl extends ServiceImpl<PayOrderMapper, PayOrder> i
         if (oldOrder == null) {
             // 不存在支付单，说明是第一次，写入新的支付单并返回
             PayOrder payOrder = buildPayOrder(applyDTO);
-            payOrder.setPayOrderNo(IdWorker.getId());
+            payOrder.setPayOrderNo(IdWorker.getId());//支付流水号，mp雪花算法生成。
             save(payOrder);
             return payOrder;
         }
@@ -106,6 +125,8 @@ public class PayOrderServiceImpl extends ServiceImpl<PayOrderMapper, PayOrder> i
             PayOrder payOrder = buildPayOrder(applyDTO);
             payOrder.setId(oldOrder.getId());
             payOrder.setQrCodeUrl("");
+            payOrder.setCreateTime(oldOrder.getCreateTime());
+            payOrder.setUpdateTime(LocalDateTime.now());
             updateById(payOrder);
             payOrder.setPayOrderNo(oldOrder.getPayOrderNo());
             return payOrder;
@@ -117,10 +138,13 @@ public class PayOrderServiceImpl extends ServiceImpl<PayOrderMapper, PayOrder> i
     private PayOrder buildPayOrder(PayApplyDTO payApplyDTO) {
         // 1.数据转换
         PayOrder payOrder = BeanUtils.toBean(payApplyDTO, PayOrder.class);
+        LocalDateTime now = LocalDateTime.now();
         // 2.初始化数据
-        payOrder.setPayOverTime(LocalDateTime.now().plusMinutes(120L));
+        payOrder.setPayOverTime(now.plusMinutes(30L));
         payOrder.setStatus(PayStatus.WAIT_BUYER_PAY.getValue());
         payOrder.setBizUserId(UserContext.getUser());
+        payOrder.setCreateTime(now);
+        payOrder.setUpdateTime(now);
         return payOrder;
     }
     public PayOrder queryByBizOrderNo(Long bizOrderNo) {

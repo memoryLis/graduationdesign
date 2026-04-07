@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
  *
  * @Author liang
  * @Create 2024/10/21 15:07
- * @Version jdk17.0
+ * @Version jdk11
  */
 @Component
 @RequiredArgsConstructor

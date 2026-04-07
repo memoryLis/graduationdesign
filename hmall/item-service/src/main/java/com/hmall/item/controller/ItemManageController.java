@@ -8,6 +8,7 @@ import com.hmall.item.domain.dto.ItemDTO;
 import com.hmall.item.domain.po.Item;
 import com.hmall.item.service.IItemService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -29,30 +30,17 @@ import java.util.UUID;
 public class ItemManageController {
     @Autowired
     private IItemService itemService;
+    @Autowired
+    private RedisTemplate redisTemplate;
 
     @PostMapping("manage/add")
     public String addItem(ItemDTO itemdto, @RequestParam MultipartFile file) throws IOException {
-        String projectPath = System.getProperty("user.dir");
-        String uploadPath = projectPath + File.separator + "static" + File.separator;
         // 1. 检查文件是否为空
-        if (file.isEmpty()) {
+        if (file == null || file.isEmpty()) {
             throw new RuntimeException("上传文件不能为空");
         }
-        // 2. 获取原文件名并生成唯一文件名（防止重名覆盖）
-        String originalFilename = file.getOriginalFilename();
-        String suffix = originalFilename.substring(originalFilename.lastIndexOf("."));
-        String newFileName = UUID.randomUUID().toString() + suffix;
-
-        // 3. 创建保存目录
-        File destDir = new File(uploadPath);
-        if (!destDir.exists()) {
-            destDir.mkdirs();
-        }
-        // 4. 保存文件到本地磁盘
-        File destFile = new File(uploadPath + newFileName);
-        file.transferTo(destFile);//保存图片到磁盘上
-        //5 数据库中存储图片路径，以 /uploads/ 开头方便前端代理访问
-        String image = "/uploads/" + newFileName;
+        // 2. 保存图片并回填图片路径
+        String image = saveImage(file);
         Item item = new Item();
         BeanUtils.copyProperties(itemdto, item);
         item.setImage(image);
@@ -61,9 +49,18 @@ public class ItemManageController {
     }
 
     @PutMapping("manage/update")
-    public String updateItem(@RequestBody ItemDTO itemDTO) {
+    public String updateItem(ItemDTO itemDTO, @RequestParam(value = "file", required = false) MultipartFile file) throws IOException {
+        if (itemDTO.getId() == null) {
+            throw new RuntimeException("商品id不能为空");
+        }
         Item item = new Item();
         BeanUtils.copyProperties(itemDTO, item);
+
+        // 编辑时如果上传了新图片，则替换图片地址；否则保持原图
+        if (file != null && !file.isEmpty()) {
+            item.setImage(saveImage(file));
+        }
+
         itemService.updateById(item);
         return "success";
     }
@@ -85,6 +82,41 @@ public class ItemManageController {
         }
         Page<Item> page = itemService.page(new Page<>(pageNo, pageSize), wrapper);
         return PageDTO.of(page, ItemDTO.class);
+    }
+
+    private String saveImage(MultipartFile file) throws IOException {
+        String projectPath = System.getProperty("user.dir");
+        String uploadPath = projectPath + File.separator + "static" + File.separator;
+
+        String originalFilename = file.getOriginalFilename();
+        String suffix = ".jpg";
+        if (originalFilename != null && originalFilename.lastIndexOf(".") > -1) {
+            suffix = originalFilename.substring(originalFilename.lastIndexOf("."));
+        }
+        String newFileName = UUID.randomUUID() + suffix;
+
+        File destDir = new File(uploadPath);
+        if (!destDir.exists()) {
+            destDir.mkdirs();
+        }
+        File destFile = new File(uploadPath + newFileName);
+        file.transferTo(destFile);
+
+        return "/uploads/" + newFileName;
+    }
+    /**
+     * 加入为热门商品
+     * 首页展示热门商品。热门商品扣减库存通过redis实现。扣减余额和购物车商品通过rabbitmq发送消息实现。
+     */
+    @PostMapping("manage/addHotItem")
+    public String addHotItem(Long itemId) {
+        //把热门商品放入redis中
+        Item hotItem = itemService.getById(itemId);
+        if(!hotItem.getStatus().equals("1")){
+            throw new RuntimeException("商品未上架");
+        }
+        redisTemplate.opsForSet().add("hot_items", hotItem);
+        return "success";
     }
 
 }

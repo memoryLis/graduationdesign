@@ -12,8 +12,8 @@
     <artifactId>item-service</artifactId>
 
     <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
     </properties>
 
 
@@ -70,6 +70,16 @@
 <!--            <groupId>org.elasticsearch.client</groupId>-->
 <!--            <artifactId>elasticsearch-rest-high-level-client</artifactId>-->
 <!--        </dependency>-->
+        <!-- Spring Boot Redis 核心依赖（必须） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <!-- Redis 连接池（必须，否则无法配置池化） -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-pool2</artifactId>
+        </dependency>
     </dependencies>
     <build>
         <finalName>${project.artifactId}</finalName>

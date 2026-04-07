@@ -10,6 +10,17 @@ spring:
   web:
     resources:
       static-locations: classpath:/static/,file:${user.dir}/static/
+  redis:
+    host: 192.168.40.66
+    port: 6379
+    database: 0
+  # 连接池配置
+    lettuce:
+     pool:
+      max-active: 8
+      max-idle: 8
+      min-idle: 2
+      max-wait: 100ms
 logging:
   level:
     com.hmall: debug
