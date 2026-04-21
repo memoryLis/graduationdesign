@@ -15,6 +15,16 @@ spring:
     username: admin
     password: password123
     virtual-host: /
+  redis:
+    host: 192.168.40.66
+    port: 6379
+    database: 0
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 2
+        max-wait: 100ms
 knife4j:
   enable: true
   openapi:

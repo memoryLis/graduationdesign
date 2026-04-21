@@ -9,11 +9,15 @@ import lombok.Data;
 public class CartFormDTO {
     @ApiModelProperty("商品id")
     private Long itemId;
+    @ApiModelProperty("购买数量")
+    private Integer num;
+    @ApiModelProperty("是否热门商品 0-否 1-是")
+    private Integer isHot;
     @ApiModelProperty("商品标题")
     private String name;
     @ApiModelProperty("商品动态属性键值集")
     private String spec;
-    @ApiModelProperty("价格,单位：分")
+    @ApiModelProperty("价格，单位：分")
     private Integer price;
     @ApiModelProperty("商品图片")
     private String image;

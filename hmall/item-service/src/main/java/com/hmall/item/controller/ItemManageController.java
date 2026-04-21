@@ -9,42 +9,44 @@ import com.hmall.item.domain.po.Item;
 import com.hmall.item.service.IItemService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
-/**
- * ClassName: ItemPictureController
- * Package: com.hmall.item.controller
- *
- * @Author liang
- * @Create 2026/4/6 10:04
- * Description:管理员为账号密码都为123
- * 这个接口用于给管理员添加商品，管理商品
- */
 @RestController
 @RequestMapping("items")
 public class ItemManageController {
+
+    private static final Integer ITEM_STATUS_NORMAL = 1;
+
     @Autowired
     private IItemService itemService;
     @Autowired
-    private RedisTemplate redisTemplate;
+    private RedisTemplate<String, Object> redisTemplate;
 
     @PostMapping("manage/add")
     public String addItem(ItemDTO itemdto, @RequestParam MultipartFile file) throws IOException {
-        // 1. 检查文件是否为空
         if (file == null || file.isEmpty()) {
             throw new RuntimeException("上传文件不能为空");
         }
-        // 2. 保存图片并回填图片路径
         String image = saveImage(file);
         Item item = new Item();
         BeanUtils.copyProperties(itemdto, item);
         item.setImage(image);
-        itemService.save( item);
+        itemService.save(item);
         return "success";
     }
 
@@ -56,18 +58,20 @@ public class ItemManageController {
         Item item = new Item();
         BeanUtils.copyProperties(itemDTO, item);
 
-        // 编辑时如果上传了新图片，则替换图片地址；否则保持原图
         if (file != null && !file.isEmpty()) {
             item.setImage(saveImage(file));
         }
 
         itemService.updateById(item);
+        syncHotItemCache(itemDTO.getId());
         return "success";
     }
 
     @DeleteMapping("manage/delete/{id}")
     public String deleteItem(@PathVariable Long id) {
         itemService.removeById(id);
+        redisTemplate.opsForHash().delete(HotItemController.HOT_ITEM_KEY, String.valueOf(id));
+        redisTemplate.delete(HotItemController.HOT_ITEM_STOCK_KEY_PREFIX + id);
         return "success";
     }
 
@@ -80,8 +84,60 @@ public class ItemManageController {
         if (name != null && !name.isEmpty()) {
             wrapper.like(Item::getName, name);
         }
+        wrapper.orderByDesc(Item::getUpdateTime);
+
         Page<Item> page = itemService.page(new Page<>(pageNo, pageSize), wrapper);
-        return PageDTO.of(page, ItemDTO.class);
+        Set<Object> hotItemKeys = redisTemplate.opsForHash().keys(HotItemController.HOT_ITEM_KEY);
+        Set<String> safeHotItemIds = hotItemKeys == null ? Collections.emptySet()
+                : hotItemKeys.stream().map(String::valueOf).collect(Collectors.toSet());
+
+        return PageDTO.of(page, item -> {
+            ItemDTO dto = BeanUtils.copyBean(item, ItemDTO.class);
+            dto.setHot(safeHotItemIds.contains(String.valueOf(item.getId())));
+            return dto;
+        });
+    }
+
+    @PostMapping("manage/addHotItem")
+    public String addHotItem(@RequestParam Long itemId) {
+        Item hotItem = itemService.getById(itemId);
+        if (hotItem == null) {
+            throw new RuntimeException("商品不存在");
+        }
+        if (!ITEM_STATUS_NORMAL.equals(hotItem.getStatus())) {
+            throw new RuntimeException("只有上架商品才能设为热门商品");
+        }
+        redisTemplate.opsForHash().put(HotItemController.HOT_ITEM_KEY, String.valueOf(itemId), toHotItemDTO(hotItem));
+        redisTemplate.opsForValue().set(HotItemController.HOT_ITEM_STOCK_KEY_PREFIX + itemId, String.valueOf(hotItem.getStock()));
+        return "success";
+    }
+
+    @PostMapping("manage/cancelHotItem")
+    public String cancelHotItem(@RequestParam Long itemId) {
+        redisTemplate.opsForHash().delete(HotItemController.HOT_ITEM_KEY, String.valueOf(itemId));
+        redisTemplate.delete(HotItemController.HOT_ITEM_STOCK_KEY_PREFIX + itemId);
+        return "success";
+    }
+
+    private void syncHotItemCache(Long itemId) {
+        Object hotItemValue = redisTemplate.opsForHash().get(HotItemController.HOT_ITEM_KEY, String.valueOf(itemId));
+        if (hotItemValue == null) {
+            return;
+        }
+        Item latestItem = itemService.getById(itemId);
+        if (latestItem == null || !ITEM_STATUS_NORMAL.equals(latestItem.getStatus())) {
+            redisTemplate.opsForHash().delete(HotItemController.HOT_ITEM_KEY, String.valueOf(itemId));
+            redisTemplate.delete(HotItemController.HOT_ITEM_STOCK_KEY_PREFIX + itemId);
+            return;
+        }
+        redisTemplate.opsForHash().put(HotItemController.HOT_ITEM_KEY, String.valueOf(itemId), toHotItemDTO(latestItem));
+        redisTemplate.opsForValue().set(HotItemController.HOT_ITEM_STOCK_KEY_PREFIX + itemId, String.valueOf(latestItem.getStock()));
+    }
+
+    private ItemDTO toHotItemDTO(Item item) {
+        ItemDTO dto = BeanUtils.copyBean(item, ItemDTO.class);
+        dto.setHot(Boolean.TRUE);
+        return dto;
     }
 
     private String saveImage(MultipartFile file) throws IOException {
@@ -104,19 +160,4 @@ public class ItemManageController {
 
         return "/uploads/" + newFileName;
     }
-    /**
-     * 加入为热门商品
-     * 首页展示热门商品。热门商品扣减库存通过redis实现。扣减余额和购物车商品通过rabbitmq发送消息实现。
-     */
-    @PostMapping("manage/addHotItem")
-    public String addHotItem(Long itemId) {
-        //把热门商品放入redis中
-        Item hotItem = itemService.getById(itemId);
-        if(!hotItem.getStatus().equals("1")){
-            throw new RuntimeException("商品未上架");
-        }
-        redisTemplate.opsForSet().add("hot_items", hotItem);
-        return "success";
-    }
-
 }

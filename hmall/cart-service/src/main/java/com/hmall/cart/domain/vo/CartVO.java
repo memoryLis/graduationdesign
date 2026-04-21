@@ -6,28 +6,22 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/**
- * <p>
- * 订单详情表
- * </p>
- *
- * @author 虎哥
- * @since 2023-05-05
- */
 @Data
 @ApiModel(description = "购物车VO实体")
 public class CartVO {
-    @ApiModelProperty("购物车条目id ")
+    @ApiModelProperty("购物车条目id")
     private Long id;
     @ApiModelProperty("sku商品id")
     private Long itemId;
     @ApiModelProperty("购买数量")
     private Integer num;
+    @ApiModelProperty("是否热门商品 0-否 1-是")
+    private Integer isHot;
     @ApiModelProperty("商品标题")
     private String name;
     @ApiModelProperty("商品动态属性键值集")
     private String spec;
-    @ApiModelProperty("价格,单位：分")
+    @ApiModelProperty("价格，单位：分")
     private Integer price;
     @ApiModelProperty("商品最新价格")
     private Integer newPrice;
@@ -39,5 +33,4 @@ public class CartVO {
     private String image;
     @ApiModelProperty("创建时间")
     private LocalDateTime createTime;
-
 }
