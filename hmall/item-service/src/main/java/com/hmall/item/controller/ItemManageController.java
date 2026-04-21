@@ -2,9 +2,10 @@ package com.hmall.item.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.hmall.api.dto.ItemDTO;
 import com.hmall.common.domain.PageDTO;
 import com.hmall.common.utils.BeanUtils;
-import com.hmall.item.domain.dto.ItemDTO;
+
 import com.hmall.item.domain.po.Item;
 import com.hmall.item.service.IItemService;
 import org.springframework.beans.factory.annotation.Autowired;
