@@ -106,6 +106,39 @@
       </div>
     </div>
 
+    <div class="card section browse-section">
+      <div class="section-header">
+        <h3>浏览历史</h3>
+        <span class="tip-inline">共 {{ browseTotal }} 条</span>
+      </div>
+
+      <div v-if="browseLoading" class="tip">加载中...</div>
+      <div v-else-if="browseError" class="tip error-text">{{ browseError }}</div>
+      <div v-else-if="browseHistory.length === 0" class="tip">暂无浏览历史。</div>
+      <div v-else class="browse-list">
+        <article class="browse-item" v-for="item in browseHistory" :key="item.id">
+          <RouterLink :to="`/product/${item.itemId}`" class="browse-link">
+            <img v-if="item.itemImage" :src="item.itemImage" :alt="item.itemName" class="browse-image" />
+            <div class="browse-info">
+              <h4>{{ item.itemName || ("商品" + item.itemId) }}</h4>
+              <p class="browse-price" v-if="item.itemPrice">¥{{ (item.itemPrice / 100).toFixed(2) }}</p>
+              <p class="browse-time">{{ formatDateTime(item.createTime) }}</p>
+            </div>
+          </RouterLink>
+        </article>
+      </div>
+
+      <div class="pagination" v-if="browsePages > 1">
+        <button class="ghost" :disabled="browsePageNo <= 1 || browseLoading" @click="changeBrowsePage(browsePageNo - 1)">
+          上一页
+        </button>
+        <span>第 {{ browsePageNo }} 页 / 共 {{ browsePages }} 页</span>
+        <button class="ghost" :disabled="browsePageNo >= browsePages || browseLoading" @click="changeBrowsePage(browsePageNo + 1)">
+          下一页
+        </button>
+      </div>
+    </div>
+
     <div class="modal-mask" v-if="showModal" @click="closeModal">
       <div class="modal-box card scale-in" @click.stop>
         <div class="modal-head">
@@ -195,15 +228,19 @@ import { addAddress, fetchAddressList, updateAddress } from "@/features/order/ap
 import { queryMyPayOrders } from "@/features/order/api/my-order.api";
 import { deleteMyComment, fetchMyComments } from "@/features/product/api/comment.api";
 import { fetchMyPoints } from "@/features/user/api/user.api";
+import { fetchMyBrowseHistory } from "@/features/user/api/browse-history.api";
 
 const addresses = ref([]);
 const myComments = ref([]);
 const pointSummary = ref({ points: 0 });
 const pointRecords = ref([]);
+const browseHistory = ref([]);
 const loading = ref(false);
 const commentLoading = ref(false);
 const pointLoading = ref(false);
+const browseLoading = ref(false);
 const commentError = ref("");
+const browseError = ref("");
 const commentPageNo = ref(1);
 const commentPageSize = 10;
 const commentTotal = ref(0);
@@ -212,6 +249,10 @@ const pointPageNo = ref(1);
 const pointPageSize = 6;
 const pointTotal = ref(0);
 const pointPages = ref(0);
+const browsePageNo = ref(1);
+const browsePageSize = 10;
+const browseTotal = ref(0);
+const browsePages = ref(0);
 const showModal = ref(false);
 const isEdit = ref(false);
 const submitting = ref(false);
@@ -361,6 +402,31 @@ async function changePointPage(page) {
   await loadPointUsage(page);
 }
 
+async function loadBrowseHistory(page = browsePageNo.value) {
+  browseLoading.value = true;
+  browseError.value = "";
+  try {
+    const result = await fetchMyBrowseHistory(page, browsePageSize);
+    browseHistory.value = result.list || [];
+    browseTotal.value = result.total || 0;
+    browsePages.value = result.pages || 0;
+    browsePageNo.value = page;
+  } catch (error) {
+    console.error("加载浏览历史失败", error);
+    browseHistory.value = [];
+    browseTotal.value = 0;
+    browsePages.value = 0;
+    browseError.value = error?.message || error?.msg || "加载浏览历史失败";
+  } finally {
+    browseLoading.value = false;
+  }
+}
+
+async function changeBrowsePage(page) {
+  if (page < 1 || (browsePages.value && page > browsePages.value)) return;
+  await loadBrowseHistory(page);
+}
+
 async function handleDeleteComment(comment) {
   const itemName = comment.itemName || `商品${comment.itemId}`;
   if (!window.confirm(`确认删除你在《${itemName}》下的这条评论吗？`)) {
@@ -452,7 +518,7 @@ async function submitForm() {
 }
 
 onMounted(async () => {
-  await Promise.all([loadMyPoints(), loadPointUsage(1), loadAddresses(), loadMyComments(1)]);
+  await Promise.all([loadMyPoints(), loadPointUsage(1), loadAddresses(), loadMyComments(1), loadBrowseHistory(1)]);
 });
 </script>
 
@@ -489,7 +555,8 @@ h4 {
   margin-bottom: 18px;
 }
 
-.comment-section {
+.comment-section,
+.browse-section {
   margin-top: 18px;
 }
 
@@ -566,7 +633,8 @@ h4 {
 
 .point-record-list,
 .addr-list,
-.comment-list {
+.comment-list,
+.browse-list {
   list-style: none;
   padding: 0;
   margin: 0;
@@ -577,7 +645,8 @@ h4 {
 
 .point-record-item,
 .addr-item,
-.comment-item {
+.comment-item,
+.browse-item {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -597,7 +666,8 @@ h4 {
 
 .point-record-item:hover,
 .addr-item:hover,
-.comment-item:hover {
+.comment-item:hover,
+.browse-item:hover {
   transform: translateY(-1px);
   border-color: #ffcfb8;
   box-shadow: 0 10px 22px rgba(255, 80, 0, 0.08);
@@ -696,6 +766,55 @@ h4 {
   color: var(--text-main);
   line-height: 1.8;
   white-space: pre-wrap;
+}
+
+.browse-item {
+  padding: 0;
+  overflow: hidden;
+}
+
+.browse-link {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  text-decoration: none;
+  color: inherit;
+  width: 100%;
+}
+
+.browse-image {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.browse-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.browse-info h4 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.browse-price {
+  margin: 4px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--brand);
+}
+
+.browse-time {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-sub);
 }
 
 .modal-mask {

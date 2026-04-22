@@ -10,6 +10,7 @@ import com.hmall.item.domain.po.Item;
 import com.hmall.item.service.IItemService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -37,7 +38,8 @@ public class ItemManageController {
     private IItemService itemService;
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
-
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
     @PostMapping("manage/add")
     public String addItem(ItemDTO itemdto, @RequestParam MultipartFile file) throws IOException {
         if (file == null || file.isEmpty()) {
@@ -72,7 +74,7 @@ public class ItemManageController {
     public String deleteItem(@PathVariable Long id) {
         itemService.removeById(id);
         redisTemplate.opsForHash().delete(HotItemController.HOT_ITEM_KEY, String.valueOf(id));
-        redisTemplate.delete(HotItemController.HOT_ITEM_STOCK_KEY_PREFIX + id);
+        stringRedisTemplate.delete(HotItemController.HOT_ITEM_STOCK_KEY_PREFIX + id);
         return "success";
     }
 
@@ -109,14 +111,14 @@ public class ItemManageController {
             throw new RuntimeException("只有上架商品才能设为热门商品");
         }
         redisTemplate.opsForHash().put(HotItemController.HOT_ITEM_KEY, String.valueOf(itemId), toHotItemDTO(hotItem));
-        redisTemplate.opsForValue().set(HotItemController.HOT_ITEM_STOCK_KEY_PREFIX + itemId, String.valueOf(hotItem.getStock()));
+        stringRedisTemplate.opsForValue().set(HotItemController.HOT_ITEM_STOCK_KEY_PREFIX + itemId, String.valueOf(hotItem.getStock()));
         return "success";
     }
 
     @PostMapping("manage/cancelHotItem")
     public String cancelHotItem(@RequestParam Long itemId) {
         redisTemplate.opsForHash().delete(HotItemController.HOT_ITEM_KEY, String.valueOf(itemId));
-        redisTemplate.delete(HotItemController.HOT_ITEM_STOCK_KEY_PREFIX + itemId);
+        stringRedisTemplate.delete(HotItemController.HOT_ITEM_STOCK_KEY_PREFIX + itemId);
         return "success";
     }
 
@@ -128,11 +130,11 @@ public class ItemManageController {
         Item latestItem = itemService.getById(itemId);
         if (latestItem == null || !ITEM_STATUS_NORMAL.equals(latestItem.getStatus())) {
             redisTemplate.opsForHash().delete(HotItemController.HOT_ITEM_KEY, String.valueOf(itemId));
-            redisTemplate.delete(HotItemController.HOT_ITEM_STOCK_KEY_PREFIX + itemId);
+            stringRedisTemplate.delete(HotItemController.HOT_ITEM_STOCK_KEY_PREFIX + itemId);
             return;
         }
         redisTemplate.opsForHash().put(HotItemController.HOT_ITEM_KEY, String.valueOf(itemId), toHotItemDTO(latestItem));
-        redisTemplate.opsForValue().set(HotItemController.HOT_ITEM_STOCK_KEY_PREFIX + itemId, String.valueOf(latestItem.getStock()));
+        stringRedisTemplate.opsForValue().set(HotItemController.HOT_ITEM_STOCK_KEY_PREFIX + itemId, String.valueOf(latestItem.getStock()));
     }
 
     private ItemDTO toHotItemDTO(Item item) {

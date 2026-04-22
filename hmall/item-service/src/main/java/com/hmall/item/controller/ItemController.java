@@ -2,9 +2,11 @@ package com.hmall.item.controller;
 
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.hmall.api.dto.ItemDTO;
 import com.hmall.api.dto.OrderDetailDTO;
-import com.hmall.item.domain.dto.ItemDTO;
+import com.hmall.common.utils.UserContext;
 import com.hmall.item.domain.po.Item;
+import com.hmall.item.service.IBrowseHistoryService;
 import com.hmall.item.service.IItemService;
 import com.hmall.common.domain.PageDTO;
 import com.hmall.common.domain.PageQuery;
@@ -23,6 +25,7 @@ import java.util.List;
 public class ItemController {
 
     private final IItemService itemService;
+    private final IBrowseHistoryService browseHistoryService;
 
     @ApiOperation("分页查询商品")
     @GetMapping("/page")
@@ -42,6 +45,14 @@ public class ItemController {
     @ApiOperation("根据id查询商品")
     @GetMapping("{id}")
     public ItemDTO queryItemById(@PathVariable("id") Long id) {
+        try {
+            Long userId = UserContext.getUser();
+            if (userId != null) {
+                browseHistoryService.recordBrowse(userId, id);
+            }
+        } catch (Exception e) {
+            // 记录浏览历史失败不影响主流程
+        }
         return BeanUtils.copyBean(itemService.getById(id), ItemDTO.class);
     }
 

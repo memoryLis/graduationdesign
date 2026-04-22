@@ -2,6 +2,7 @@ package com.hmall.item.service.impl;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.hmall.api.dto.ItemDTO;
 import com.hmall.common.domain.PageDTO;
 import com.hmall.common.domain.PageQuery;
 import com.hmall.common.exception.BadRequestException;
@@ -9,7 +10,6 @@ import com.hmall.common.utils.BeanUtils;
 import com.hmall.common.utils.CollUtils;
 import com.hmall.common.utils.UserContext;
 import com.hmall.item.domain.dto.ItemCommentFormDTO;
-import com.hmall.item.domain.dto.ItemDTO;
 import com.hmall.item.domain.po.Item;
 import com.hmall.item.domain.po.ItemComment;
 import com.hmall.item.domain.vo.ItemCommentVO;

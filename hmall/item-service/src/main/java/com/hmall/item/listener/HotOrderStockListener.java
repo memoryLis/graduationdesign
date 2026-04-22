@@ -1,10 +1,10 @@
 package com.hmall.item.listener;
 
 import com.hmall.api.constants.HotOrderMQConstants;
+import com.hmall.api.dto.ItemDTO;
 import com.hmall.api.mq.HotItemStockMessage;
 import com.hmall.common.utils.BeanUtils;
 import com.hmall.item.controller.HotItemController;
-import com.hmall.item.domain.dto.ItemDTO;
 import com.hmall.item.domain.po.Item;
 import com.hmall.item.service.IItemService;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +13,7 @@ import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -21,6 +22,7 @@ public class HotOrderStockListener {
 
     private final IItemService itemService;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final StringRedisTemplate stringRedisTemplate;
 
     @RabbitListener(bindings = @QueueBinding(
             value = @Queue(name = HotOrderMQConstants.HOT_ORDER_STOCK_QUEUE_NAME),
@@ -38,18 +40,18 @@ public class HotOrderStockListener {
     private void syncHotItemCache(Long itemId) {
         Object hotValue = redisTemplate.opsForHash().get(HotItemController.HOT_ITEM_KEY, String.valueOf(itemId));
         if (hotValue == null) {
-            redisTemplate.delete(HotItemController.HOT_ITEM_STOCK_KEY_PREFIX + itemId);
+            stringRedisTemplate.delete(HotItemController.HOT_ITEM_STOCK_KEY_PREFIX + itemId);
             return;
         }
         Item latestItem = itemService.getById(itemId);
         if (latestItem == null) {
             redisTemplate.opsForHash().delete(HotItemController.HOT_ITEM_KEY, String.valueOf(itemId));
-            redisTemplate.delete(HotItemController.HOT_ITEM_STOCK_KEY_PREFIX + itemId);
+            stringRedisTemplate.delete(HotItemController.HOT_ITEM_STOCK_KEY_PREFIX + itemId);
             return;
         }
         ItemDTO dto = BeanUtils.copyBean(latestItem, ItemDTO.class);
         dto.setHot(Boolean.TRUE);
         redisTemplate.opsForHash().put(HotItemController.HOT_ITEM_KEY, String.valueOf(itemId), dto);
-        redisTemplate.opsForValue().set(HotItemController.HOT_ITEM_STOCK_KEY_PREFIX + itemId, String.valueOf(latestItem.getStock()));
+        stringRedisTemplate.opsForValue().set(HotItemController.HOT_ITEM_STOCK_KEY_PREFIX + itemId, String.valueOf(latestItem.getStock()));
     }
 }

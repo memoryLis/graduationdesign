@@ -45,7 +45,7 @@ public class PayOrderServiceImpl extends ServiceImpl<PayOrderMapper, PayOrder> i
     }
 
     @Override
-    @Transactional //应该使用塞seata
+    @Transactional //应该使用seata
     public void tryPayOrderByBalance(PayOrderFormDTO payOrderFormDTO) {
         // 1.查询支付单
         PayOrder po = getById(payOrderFormDTO.getId());
@@ -61,6 +61,8 @@ public class PayOrderServiceImpl extends ServiceImpl<PayOrderMapper, PayOrder> i
         if (!success) {
             throw new BizIllegalException("交易已支付或关闭！");
         }
+        //5 修改订单状态
+        rabbitTemplate.convertAndSend("pay.direct", "pay.success",po.getBizOrderNo());
 
 
     }

@@ -27,6 +27,7 @@ import com.hmall.trade.service.IOrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,6 +54,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
             "local current = redis.call('GET', KEYS[1]);" +
                     "if (not current) then return -1; end;" +
                     "current = tonumber(current);" +
+                    "if (not current) then return -1; end;" +
                     "local num = tonumber(ARGV[1]);" +
                     "if (current < num) then return 0; end;" +
                     "return redis.call('DECRBY', KEYS[1], num);",
@@ -66,6 +68,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
     private final UserClient userClient;
     private final RabbitTemplate rabbitTemplate;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final StringRedisTemplate stringRedisTemplate;
 
     @Override
     @Transactional
@@ -163,7 +166,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
     private void deductHotStockInRedis(List<OrderDetailDTO> hotDetails) {
         for (OrderDetailDTO detail : hotDetails) {
             String stockKey = HOT_ITEM_STOCK_KEY_PREFIX + detail.getItemId();
-            Long result = redisTemplate.execute(
+            Long result = stringRedisTemplate.execute(
                     HOT_STOCK_DEDUCT_SCRIPT,
                     Collections.singletonList(stockKey),
                     String.valueOf(detail.getNum())
