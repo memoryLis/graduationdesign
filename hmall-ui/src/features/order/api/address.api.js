@@ -31,3 +31,7 @@ export function addAddress(data) {
 export function updateAddress(data) {
   return client.post("/addresses/updateAddress", data);
 }
+
+export function deleteAddress(addressId) {
+  return client.delete(`/addresses/${addressId}`);
+}

@@ -49,16 +49,16 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
             token=authorization.get(0);
         }
         //解析token
-        Long userId =null;
+        String[] userInfoArr = null;
         try {
-             userId = jwtTool.parseToken(token);
+             userInfoArr = jwtTool.parseTokenFull(token);
         }catch (UnauthorizedException e){
             ServerHttpResponse response = exchange.getResponse();
             response.setStatusCode(HttpStatus.UNAUTHORIZED);
             return  response.setComplete();
         }
-        //传递用户信息
-        String userinfo =userId.toString();
+        //传递用户信息: userId:username
+        String userinfo = userInfoArr[0] + ":" + userInfoArr[1];
         ServerWebExchange serverWebExchange = exchange.
                 mutate().request(builder -> builder.header("user-info", userinfo)).build();
         return  chain.filter(serverWebExchange);

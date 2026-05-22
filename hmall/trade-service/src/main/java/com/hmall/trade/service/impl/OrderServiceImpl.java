@@ -10,6 +10,7 @@ import com.hmall.api.dto.AddressDTO;
 import com.hmall.api.dto.ItemDTO;
 import com.hmall.api.dto.OrderDetailDTO;
 import com.hmall.api.dto.OrderFormDTO;
+import com.hmall.api.dto.UserOrderInteractionDTO;
 import com.hmall.api.mq.CartClearMessage;
 import com.hmall.api.mq.HotItemStockMessage;
 import com.hmall.api.vo.OrderItemDetailVO;
@@ -243,10 +244,17 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
     @Override
     public OrderPayDetailVO queryPayOrderDetail(Long orderId) {
         Long userId = UserContext.getUser();
-        Order order = lambdaQuery()
-                .eq(Order::getId, orderId)
-                .eq(Order::getUserId, userId)
-                .one();
+        boolean isAdmin = UserContext.isAdmin();
+        Order order;
+        if (isAdmin) {
+            order = lambdaQuery().eq(Order::getId, orderId).one();
+        } else {
+            order = lambdaQuery()
+                    .eq(Order::getId, orderId)
+                    .eq(Order::getUserId, userId)
+                    .one();
+        }
+
         if (order == null) {
             throw new BadRequestException("订单不存在");
         }
@@ -276,5 +284,90 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         }).collect(Collectors.toList());
         result.setDetails(detailVOList);
         return result;
+    }
+
+    @Override
+    public List<UserOrderInteractionDTO> queryMyOrderInteractions() {
+        Long userId = UserContext.getUser();
+        if (userId == null) {
+            return CollUtils.emptyList();
+        }
+        List<Order> orders = lambdaQuery()
+                .eq(Order::getUserId, userId)
+                .in(Order::getStatus, 2, 3, 4, 6)
+                .list();
+        if (CollUtils.isEmpty(orders)) {
+            return CollUtils.emptyList();
+        }
+
+        Map<Long, Long> orderUserMap = orders.stream()
+                .collect(Collectors.toMap(Order::getId, Order::getUserId, (a, b) -> a));
+
+        List<OrderDetail> details = detailService.lambdaQuery()
+                .in(OrderDetail::getOrderId, orderUserMap.keySet())
+                .list();
+        if (CollUtils.isEmpty(details)) {
+            return CollUtils.emptyList();
+        }
+
+        return details.stream()
+                .map(detail -> {
+                    UserOrderInteractionDTO dto = new UserOrderInteractionDTO();
+                    dto.setUserId(orderUserMap.get(detail.getOrderId()));
+                    dto.setItemId(detail.getItemId());
+                    dto.setNum(detail.getNum());
+                    return dto;
+                })
+                .filter(dto -> dto.getUserId() != null && dto.getItemId() != null)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public void confirmOrder(Long orderId) {
+        Long userId = UserContext.getUser();
+        Order order = lambdaQuery()
+                .eq(Order::getId, orderId)
+                .eq(Order::getUserId, userId)
+                .one();
+        if (order == null) {
+            throw new BadRequestException("订单不存在");
+        }
+        if (order.getStatus() != 3) {
+            throw new BadRequestException("订单状态不正确，仅已发货的订单可确认收货");
+        }
+        order.setStatus(4);
+        order.setEndTime(LocalDateTime.now());
+        updateById(order);
+    }
+
+    @Override
+    public List<UserOrderInteractionDTO> queryOrderInteractions() {
+        List<Order> orders = lambdaQuery()
+                .in(Order::getStatus, 2, 3, 4, 6)
+                .list();
+        if (CollUtils.isEmpty(orders)) {
+            return CollUtils.emptyList();
+        }
+
+        Map<Long, Long> orderUserMap = orders.stream()
+                .collect(Collectors.toMap(Order::getId, Order::getUserId, (a, b) -> a));
+
+        List<OrderDetail> details = detailService.lambdaQuery()
+                .in(OrderDetail::getOrderId, orderUserMap.keySet())
+                .list();
+        if (CollUtils.isEmpty(details)) {
+            return CollUtils.emptyList();
+        }
+
+        return details.stream()
+                .map(detail -> {
+                    UserOrderInteractionDTO dto = new UserOrderInteractionDTO();
+                    dto.setUserId(orderUserMap.get(detail.getOrderId()));
+                    dto.setItemId(detail.getItemId());
+                    dto.setNum(detail.getNum());
+                    return dto;
+                })
+                .filter(dto -> dto.getUserId() != null && dto.getItemId() != null)
+                .collect(Collectors.toList());
     }
 }

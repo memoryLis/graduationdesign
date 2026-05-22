@@ -34,7 +34,12 @@ public class DefaultFeignConfig {
             public void apply(RequestTemplate requestTemplate) {
                  Long userId = UserContext.getUser();
                 if (userId != null) {
-                    requestTemplate.header("user-info", userId.toString());
+                    String userInfo = userId.toString();
+                    String username = UserContext.getUsername();
+                    if (username != null && !username.isEmpty()) {
+                        userInfo += ":" + username;
+                    }
+                    requestTemplate.header("user-info", userInfo);
                 }
             }
         };

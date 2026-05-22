@@ -46,4 +46,21 @@ public class SearchController {
     public List<String> getCategories() {
         return ItemConstant.CATEGORY_LIST;
     }
+
+    @GetMapping("/searchUserLike")
+    public List<ItemDTO> getUserLike() {
+        /**
+         * 根据用户的浏览历史和下单记录，推荐商品
+         */
+        return itemService.getUserLike();
+    }
+
+
+    @GetMapping("/searchFavorite")
+    public List<ItemDTO> searchFavorite() {
+        /**
+         * 根据用户的浏览历史和下单记录，推荐商品
+         */
+        return itemService.searchFavorite();
+    }
 }

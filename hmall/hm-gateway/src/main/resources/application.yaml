@@ -8,8 +8,9 @@ hm:
     tokenTTL: 30m
   auth:
     excludePaths:
-      - /search/**
+      - /search/list
+      - /search/categories
       - /users/login
       - /users/register
-      - /items/**
+      - /items/page
       - /hi

@@ -12,7 +12,13 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
@@ -38,7 +44,7 @@ public class AddressController {
         Address address = addressService.getById(id);
         // 2.判断当前用户
         Long userId = UserContext.getUser();
-        if(!address.getUserId().equals(userId)){
+        if(!address.getUserId().equals(userId) && !UserContext.isAdmin()){
             throw new BadRequestException("地址不属于当前登录用户");
         }
         return BeanUtils.copyBean(address, AddressDTO.class);
@@ -68,14 +74,26 @@ public class AddressController {
     /**
      * 修改收货地址
      */
-      @PostMapping("/updateAddress")
-        public void updateAddress(@RequestBody AddressDTO address){
+    @PostMapping("/updateAddress")
+    public void updateAddress(@RequestBody AddressDTO address){
         Long userId = UserContext.getUser();
         Address addressPO = BeanUtils.copyBean(address, Address.class);
         addressPO.setUserId(userId);
         addressService.updateById(addressPO);
     }
 
-
+    @ApiOperation("删除收货地址")
+    @DeleteMapping("{addressId}")
+    public void deleteAddress(@ApiParam("地址id") @PathVariable("addressId") Long id) {
+        Address address = addressService.getById(id);
+        if (address == null) {
+            throw new BadRequestException("地址不存在");
+        }
+        Long userId = UserContext.getUser();
+        if (!address.getUserId().equals(userId)) {
+            throw new BadRequestException("地址不属于当前登录用户");
+        }
+        addressService.removeById(id);
+    }
 
 }

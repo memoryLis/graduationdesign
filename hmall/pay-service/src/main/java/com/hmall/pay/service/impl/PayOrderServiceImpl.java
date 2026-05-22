@@ -78,7 +78,7 @@ public class PayOrderServiceImpl extends ServiceImpl<PayOrderMapper, PayOrder> i
         if(payOrder == null){
             throw new RuntimeException("支付单不存在！");
         }
-        if (!UserContext.getUser().equals(payOrder.getBizUserId())) {
+        if (!UserContext.getUser().equals(payOrder.getBizUserId()) && !UserContext.isAdmin()) {
             throw new BizIllegalException("无权查看该支付单");
         }
         //拿到orderId

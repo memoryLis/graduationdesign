@@ -39,43 +39,41 @@ public class JwtTool {
      * 解析token
      *
      * @param token token
-     * @return 解析刷新token得到的用户信息
+     * @return 解析刷新token得到的用户信息 [userId, username]
      */
     public Long parseToken(String token) {
-        // 1.校验token是否为空
+        String[] result = parseTokenFull(token);
+        return Long.valueOf(result[0]);
+    }
+
+    public String[] parseTokenFull(String token) {
         if (token == null) {
             throw new UnauthorizedException("未登录");
         }
-        // 2.校验并解析jwt
         JWT jwt;
         try {
             jwt = JWT.of(token).setSigner(jwtSigner);
         } catch (Exception e) {
             throw new UnauthorizedException("无效的token", e);
         }
-        // 2.校验jwt是否有效
         if (!jwt.verify()) {
-            // 验证失败
             throw new UnauthorizedException("无效的token");
         }
-        // 3.校验是否过期
         try {
             JWTValidator.of(jwt).validateDate();
         } catch (ValidateException e) {
             throw new UnauthorizedException("token已经过期");
         }
-        // 4.数据格式校验
         Object userPayload = jwt.getPayload("user");
         if (userPayload == null) {
-            // 数据为空
             throw new UnauthorizedException("无效的token");
         }
-
-        // 5.数据解析
         try {
-           return Long.valueOf(userPayload.toString());
+            String userId = userPayload.toString();
+            Object usernamePayload = jwt.getPayload("username");
+            String username = usernamePayload != null ? usernamePayload.toString() : "";
+            return new String[]{userId, username};
         } catch (RuntimeException e) {
-            // 数据格式有误
             throw new UnauthorizedException("无效的token");
         }
     }

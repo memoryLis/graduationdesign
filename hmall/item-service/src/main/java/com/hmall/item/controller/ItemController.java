@@ -14,10 +14,12 @@ import com.hmall.common.utils.BeanUtils;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @Api(tags = "商品管理相关接口")
 @RestController
 @RequestMapping("/items")
@@ -48,10 +50,13 @@ public class ItemController {
         try {
             Long userId = UserContext.getUser();
             if (userId != null) {
+                log.info("记录用户 {} 浏览商品 {}", userId, id);
                 browseHistoryService.recordBrowse(userId, id);
+            } else {
+                log.warn("用户未登录，无法记录浏览历史，商品ID: {}", id);
             }
         } catch (Exception e) {
-            // 记录浏览历史失败不影响主流程
+            log.error("记录浏览历史失败，商品ID: {}, 错误: {}", id, e.getMessage(), e);
         }
         return BeanUtils.copyBean(itemService.getById(id), ItemDTO.class);
     }

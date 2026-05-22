@@ -1,5 +1,6 @@
 package com.hmall.trade.controller;
 
+import com.hmall.api.dto.UserOrderInteractionDTO;
 import com.hmall.api.vo.OrderPayDetailVO;
 import com.hmall.trade.service.IOrderService;
 import lombok.RequiredArgsConstructor;
@@ -7,6 +8,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * ClassName: OrderFeignController
@@ -25,5 +28,15 @@ public class OrderFeignController {
     @GetMapping("/getPayOrderDetail/{id}")
     public OrderPayDetailVO getPayOrderDetail(@PathVariable("id") Long orderId){
         return orderService.queryPayOrderDetail(orderId);
+    }
+
+    @GetMapping("/interactions/me")
+    public List<UserOrderInteractionDTO> queryMyOrderInteractions() {
+        return orderService.queryMyOrderInteractions();
+    }
+
+    @GetMapping("/interactions")
+    public List<UserOrderInteractionDTO> queryOrderInteractions() {
+        return orderService.queryOrderInteractions();
     }
 }

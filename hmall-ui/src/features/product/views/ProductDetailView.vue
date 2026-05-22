@@ -22,6 +22,9 @@
               <button @click="num++">+</button>
             </div>
             <button class="btn-primary" @click="addToCart">加入购物车</button>
+            <button class="btn-fav" :class="{ favorited }" :disabled="favToggling" @click="toggleFavorite">
+              {{ favorited ? '♥ 已收藏' : '♡ 收藏' }}
+            </button>
           </div>
         </div>
       </div>
@@ -81,6 +84,7 @@ import { onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { getProductDetail } from "@/features/product/api/product.api";
 import { createItemComment, fetchItemComments } from "@/features/product/api/comment.api";
+import { addFavorite, checkFavorited, removeFavorite } from "@/features/product/api/favorite.api";
 import { useCartStore } from "@/features/cart/store/cart.store";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 
@@ -101,6 +105,8 @@ const commentContent = ref("");
 const commentSubmitting = ref(false);
 const cartStore = useCartStore();
 const authStore = useAuthStore();
+const favorited = ref(false);
+const favToggling = ref(false);
 const defaultImg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Crect fill='%23f0e6d6' width='400' height='400'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23ad4310' font-size='48'%3E%F0%9F%93%A6%3C/text%3E%3C/svg%3E";
 
 const onImgError = (e) => {
@@ -209,8 +215,35 @@ const submitComment = async () => {
   }
 };
 
+const toggleFavorite = async () => {
+  if (!authStore.isLoggedIn) {
+    goLogin();
+    return;
+  }
+  favToggling.value = true;
+  try {
+    if (favorited.value) {
+      await removeFavorite(route.params.id);
+      favorited.value = false;
+    } else {
+      await addFavorite(route.params.id);
+      favorited.value = true;
+    }
+  } catch (e) {
+    alert(e?.message || e?.msg || "操作失败");
+  } finally {
+    favToggling.value = false;
+  }
+};
+
 onMounted(async () => {
   await Promise.all([loadProduct(), loadComments(1)]);
+  if (authStore.isLoggedIn) {
+    try {
+      const res = await checkFavorited(route.params.id);
+      favorited.value = res?.data?.favorited || res?.favorited || false;
+    } catch {}
+  }
 });
 </script>
 
@@ -310,6 +343,29 @@ h1 {
   width: 48px;
   text-align: center;
   font-weight: 600;
+}
+
+.btn-fav {
+  padding: 8px 18px;
+  border-radius: 20px;
+  border: 1px solid #ffd2bf;
+  background: #fff7f2;
+  color: var(--brand);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.btn-fav:hover {
+  background: #fff1e8;
+}
+
+.btn-fav.favorited {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #e04444;
 }
 
 .comment-card {

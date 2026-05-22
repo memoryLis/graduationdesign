@@ -30,4 +30,8 @@ public interface IUserService extends IService<User> {
     void deleteUser(Long id);
 
     void rechargePoints(Long id, PointRechargeDTO rechargeDTO);
+
+    void changePassword(String oldPassword, String newPassword);
+
+    int sign();
 }

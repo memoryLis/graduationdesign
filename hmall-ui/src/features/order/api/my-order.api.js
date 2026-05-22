@@ -11,3 +11,5 @@ export const queryPayOrderDetail = (payOrderId) => {
     params: { id: payOrderId }
   });
 };
+
+export const confirmOrder = (orderId) => client.put(`/orders/${orderId}/confirm`);

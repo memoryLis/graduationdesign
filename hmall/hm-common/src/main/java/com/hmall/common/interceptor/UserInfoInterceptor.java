@@ -21,9 +21,11 @@ public class UserInfoInterceptor implements HandlerInterceptor {
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         String userInfo = request.getHeader("user-info");
         if(StrUtil.isNotBlank(userInfo)){
-            //放入Threadlocal
-            UserContext.setUser(Long.valueOf(userInfo));
-
+            String[] parts = userInfo.split(":", 2);
+            UserContext.setUser(Long.valueOf(parts[0]));
+            if (parts.length > 1) {
+                UserContext.setUsername(parts[1]);
+            }
         }
         return  true;
 

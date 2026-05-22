@@ -27,9 +27,13 @@ public class JwtTool {
      * @return access-token
      */
     public String createToken(Long userId, Duration ttl) {
-        // 1.生成jws
+        return createToken(userId, null, ttl);
+    }
+
+    public String createToken(Long userId, String username, Duration ttl) {
         return JWT.create()
                 .setPayload("user", userId)
+                .setPayload("username", username != null ? username : "")
                 .setExpiresAt(new Date(System.currentTimeMillis() + ttl.toMillis()))
                 .setSigner(jwtSigner)
                 .sign();

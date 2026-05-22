@@ -12,11 +12,13 @@
         <RouterLink to="/cart">购物车</RouterLink>
         <RouterLink v-if="authStore.isLoggedIn" to="/profile">个人信息</RouterLink>
         <RouterLink v-if="authStore.isLoggedIn" to="/my-orders">我的订单</RouterLink>
-        <RouterLink v-if="isAdmin" to="/admin/items">管理商品</RouterLink>
-        <RouterLink v-if="isAdmin" to="/admin/users">用户管理</RouterLink>
+        <RouterLink v-if="authStore.isLoggedIn" to="/favorites">我的收藏</RouterLink>
       </nav>
 
       <div class="right-zone" v-if="authStore.isLoggedIn">
+        <RouterLink v-if="isAdmin" class="admin-link-right" to="/admin/items">⚙</RouterLink>
+        <RouterLink v-if="isAdmin" class="admin-link-right" to="/admin/users">👥</RouterLink>
+        <RouterLink v-if="isAdmin" class="admin-link-right" to="/admin/orders">📦</RouterLink>
         <RouterLink class="profile-chip" to="/profile">
           <span class="avatar-text">{{ avatarText }}</span>
           <span class="profile-link">{{ authStore.user?.username || '用户' }}</span>
@@ -146,6 +148,35 @@ const handleLogout = () => {
   height: 2px;
   border-radius: 999px;
   background: var(--brand);
+}
+
+.admin-link-right {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #fef9e7 0%, #fdf3d0 100%);
+  border: 1px solid #e8d5a3;
+  font-size: 15px;
+  text-decoration: none;
+  transition: all 0.25s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.admin-link-right:hover {
+  background: linear-gradient(135deg, #fef3c7 0%, #fbebaf 100%);
+  border-color: #c9a96e;
+  box-shadow: 0 2px 12px rgba(201, 169, 110, 0.35);
+  transform: translateY(-1px);
+}
+
+.admin-link-right.router-link-active {
+  background: linear-gradient(135deg, #f9e8a0 0%, #f5db85 100%);
+  border-color: #b8943d;
+  box-shadow: 0 0 0 3px rgba(201, 169, 110, 0.22);
 }
 
 .right-zone {

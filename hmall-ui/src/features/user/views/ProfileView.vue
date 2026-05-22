@@ -13,6 +13,11 @@
         <div class="point-panel">
           <p class="point-label">当前剩余积分</p>
           <strong>{{ pointSummary.points }}</strong>
+          <button class="btn-sign" :disabled="signing || signedToday" @click="handleSign">
+            {{ signing ? '签到中...' : signedToday ? '今日已签到' : '每日签到 +50' }}
+          </button>
+          <p class="sign-msg" v-if="signMsg">{{ signMsg }}</p>
+          <button class="btn-buy-points" @click="showBuyModal = true">购买积分</button>
         </div>
 
         <div class="point-records">
@@ -66,8 +71,17 @@
             <p class="notes" v-if="addr.notes">备注：{{ addr.notes }}</p>
           </div>
           <button class="ghost" @click="openEdit(addr)">编辑</button>
+          <button class="ghost danger-btn" @click="handleDeleteAddress(addr)">删除</button>
         </li>
       </ul>
+    </div>
+
+    <div class="card section pwd-section">
+      <div class="section-header">
+        <h3>账户安全</h3>
+        <button class="btn-primary btn-sm" @click="openPwdModal">修改密码</button>
+      </div>
+      <p class="tip-inline">建议定期更新密码以保证账户安全</p>
     </div>
 
     <div class="card section comment-section">
@@ -136,6 +150,56 @@
         <button class="ghost" :disabled="browsePageNo >= browsePages || browseLoading" @click="changeBrowsePage(browsePageNo + 1)">
           下一页
         </button>
+      </div>
+    </div>
+
+    <div class="modal-mask" v-if="showBuyModal" @click="showBuyModal = false">
+      <div class="modal-box card scale-in" @click.stop>
+        <div class="modal-head">
+          <h4>购买积分</h4>
+          <button class="icon-close" @click="showBuyModal = false">×</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size:16px;line-height:2;">请QQ联系 <strong style="color:var(--brand);font-size:18px;">88888888</strong> 购买积分</p>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-primary" @click="showBuyModal = false">知道了</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-mask" v-if="showPwdModal" @click="closePwdModal">
+      <div class="modal-box card scale-in" @click.stop>
+        <div class="modal-head">
+          <div>
+            <h4>修改密码</h4>
+            <p class="modal-sub">验证原密码后设置新密码</p>
+          </div>
+          <button class="icon-close" type="button" aria-label="关闭" @click="closePwdModal">×</button>
+        </div>
+        <p class="form-error" v-if="pwdError">{{ pwdError }}</p>
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-row form-row--span2">
+              <label>原密码 <span class="req">*</span></label>
+              <input v-model="pwdForm.oldPassword" type="password" placeholder="请输入原密码" />
+            </div>
+            <div class="form-row form-row--span2">
+              <label>新密码 <span class="req">*</span></label>
+              <input v-model="pwdForm.newPassword" type="password" placeholder="请输入新密码（至少4位）" />
+            </div>
+            <div class="form-row form-row--span2">
+              <label>确认新密码 <span class="req">*</span></label>
+              <input v-model="pwdForm.confirmPassword" type="password" placeholder="请再次输入新密码" />
+            </div>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="ghost" @click="closePwdModal">取消</button>
+          <button type="button" class="btn-primary" :disabled="pwdSubmitting" @click="handlePwdSubmit">
+            {{ pwdSubmitting ? "提交中..." : "确认修改" }}
+          </button>
+        </div>
       </div>
     </div>
 
@@ -224,10 +288,10 @@
 
 <script setup>
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { addAddress, fetchAddressList, updateAddress } from "@/features/order/api/address.api";
+import { addAddress, deleteAddress, fetchAddressList, updateAddress } from "@/features/order/api/address.api";
 import { queryMyPayOrders } from "@/features/order/api/my-order.api";
 import { deleteMyComment, fetchMyComments } from "@/features/product/api/comment.api";
-import { fetchMyPoints } from "@/features/user/api/user.api";
+import { changePassword, dailySign, fetchMyPoints } from "@/features/user/api/user.api";
 import { fetchMyBrowseHistory } from "@/features/user/api/browse-history.api";
 
 const addresses = ref([]);
@@ -258,6 +322,16 @@ const isEdit = ref(false);
 const submitting = ref(false);
 const formError = ref("");
 const contactInputRef = ref(null);
+
+const signing = ref(false);
+const signedToday = ref(false);
+const signMsg = ref("");
+const showBuyModal = ref(false);
+
+const showPwdModal = ref(false);
+const pwdSubmitting = ref(false);
+const pwdError = ref("");
+const pwdForm = ref({ oldPassword: "", newPassword: "", confirmPassword: "" });
 
 const emptyForm = () => ({
   id: null,
@@ -517,6 +591,65 @@ async function submitForm() {
   }
 }
 
+async function handleSign() {
+  signing.value = true;
+  signMsg.value = "";
+  try {
+    const res = await dailySign();
+    const data = res?.data || res || {};
+    if (data.success) {
+      signedToday.value = true;
+      signMsg.value = data.message || `签到成功，获得${data.points || 50}积分`;
+      await loadMyPoints();
+    } else {
+      signMsg.value = data.message || "签到失败";
+    }
+  } catch (e) {
+    signMsg.value = "签到失败，请稍后重试";
+  } finally {
+    signing.value = false;
+  }
+}
+
+async function handleDeleteAddress(addr) {
+  if (!window.confirm(`确认删除收货地址「${addr.contact} ${addr.mobile}」吗？`)) return;
+  try {
+    await deleteAddress(addr.id);
+    await loadAddresses();
+  } catch (e) {
+    alert(e?.message || e?.msg || "删除地址失败");
+  }
+}
+
+function openPwdModal() {
+  pwdForm.value = { oldPassword: "", newPassword: "", confirmPassword: "" };
+  pwdError.value = "";
+  showPwdModal.value = true;
+}
+
+function closePwdModal() {
+  showPwdModal.value = false;
+  pwdError.value = "";
+}
+
+async function handlePwdSubmit() {
+  pwdError.value = "";
+  const { oldPassword, newPassword, confirmPassword } = pwdForm.value;
+  if (!oldPassword) { pwdError.value = "请输入原密码"; return; }
+  if (!newPassword || newPassword.length < 4) { pwdError.value = "新密码不能少于4位"; return; }
+  if (newPassword !== confirmPassword) { pwdError.value = "两次输入的新密码不一致"; return; }
+  pwdSubmitting.value = true;
+  try {
+    await changePassword({ oldPassword, newPassword });
+    alert("密码修改成功，请重新登录");
+    closePwdModal();
+  } catch (e) {
+    pwdError.value = e?.message || e?.msg || "修改密码失败";
+  } finally {
+    pwdSubmitting.value = false;
+  }
+}
+
 onMounted(async () => {
   await Promise.all([loadMyPoints(), loadPointUsage(1), loadAddresses(), loadMyComments(1), loadBrowseHistory(1)]);
 });
@@ -618,6 +751,58 @@ h4 {
   font-size: 13px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.btn-sign {
+  margin-top: 14px;
+  padding: 8px 18px;
+  border-radius: 18px;
+  border: none;
+  background: var(--bg-warm);
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-sign:hover:not(:disabled) {
+  box-shadow: 0 8px 16px rgba(255, 80, 0, 0.18);
+}
+
+.btn-sign:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.sign-msg {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.btn-buy-points {
+  margin-top: 10px;
+  padding: 8px 18px;
+  border-radius: 18px;
+  border: 1px solid #ffd2bf;
+  background: #fff7f2;
+  color: var(--brand);
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 0.2s ease;
+}
+
+.btn-buy-points:hover {
+  background: #fff1e8;
+}
+
+.pwd-section {
+  margin-top: 18px;
 }
 
 .point-records {

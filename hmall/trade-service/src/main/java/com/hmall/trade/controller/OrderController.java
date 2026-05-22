@@ -43,5 +43,10 @@ public class OrderController {
         orderService.saveOrUpdate(order);
     }
 
+    @ApiOperation("用户确认收货")
+    @PutMapping("/{orderId}/confirm")
+    public void confirmOrder(@PathVariable("orderId") Long orderId) {
+        orderService.confirmOrder(orderId);
+    }
 
 }

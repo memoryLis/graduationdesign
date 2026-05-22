@@ -83,6 +83,9 @@
                 <div class="item-total">￥{{ formatMoney(item.price * item.num) }}</div>
               </article>
             </div>
+            <div class="detail-actions" v-if="detailState(order.id).data.orderStatus === 3">
+              <button class="btn-confirm" type="button" @click.stop="handleConfirm(order)">确认收货</button>
+            </div>
             <p class="empty-detail" v-else>该订单暂无商品明细</p>
           </template>
         </div>
@@ -102,7 +105,7 @@
 <script setup>
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import { queryMyPayOrders, queryPayOrderDetail } from "@/features/order/api/my-order.api";
+import { queryMyPayOrders, queryPayOrderDetail, confirmOrder } from "@/features/order/api/my-order.api";
 
 const defaultImg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='86' height='86'%3E%3Crect fill='%23f0e6d6' width='86' height='86'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23ad4310' font-size='24'%3E%F0%9F%93%A6%3C/text%3E%3C/svg%3E";
 const router = useRouter();
@@ -281,6 +284,19 @@ const goPay = (order) => {
       amount: order.amount
     }
   });
+};
+
+const handleConfirm = async (order) => {
+  if (!window.confirm("确认已收到商品吗？")) return;
+  try {
+    await confirmOrder(order.bizOrderNo);
+    alert("确认收货成功！");
+    expandedOrderId.value = null;
+    detailMap.value = {};
+    await loadOrders();
+  } catch (e) {
+    alert(e?.message || e?.msg || "确认收货失败");
+  }
 };
 
 onMounted(loadOrders);
@@ -525,6 +541,32 @@ h2 {
 .item-total {
   color: var(--brand);
   font-weight: 700;
+}
+
+.detail-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+}
+
+.btn-confirm {
+  padding: 8px 20px;
+  border-radius: 18px;
+  border: none;
+  background: var(--bg-warm);
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-confirm:hover {
+  box-shadow: 0 10px 18px rgba(255, 80, 0, 0.18);
 }
 
 .empty,

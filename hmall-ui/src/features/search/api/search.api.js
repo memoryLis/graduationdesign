@@ -15,10 +15,6 @@ function mapProduct(x) {
   };
 }
 
-/**
- * 搜索商品
- * 后端 GET /search/list 支持: key, pageNo, pageSize, sortBy, isAsc, category, brand, minPrice, maxPrice
- */
 export async function searchProducts(keyword, pageNo = 1, pageSize = 20, category = "") {
   const params = { pageNo, pageSize };
   if (keyword) params.key = keyword;
@@ -34,11 +30,13 @@ export async function searchProducts(keyword, pageNo = 1, pageSize = 20, categor
   };
 }
 
-/**
- * 获取商品种类列表
- */
 export async function getCategories() {
   const result = await client.get("/search/categories");
-  // 后端直接返回 string[]
   return Array.isArray(result) ? result : (result?.data || []);
+}
+
+export async function getGuessYouLikeProducts() {
+  const result = await client.get("/search/searchUserLike");
+  const rows = Array.isArray(result) ? result : (result?.data || []);
+  return rows.map(mapProduct);
 }

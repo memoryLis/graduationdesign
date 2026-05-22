@@ -65,6 +65,16 @@ public class PayController {
         payOrderService.tryPayOrderByBalance(payOrderFormDTO);
     }
 
+    @ApiOperation("管理员查询所有支付单")
+    @GetMapping("/admin/all")
+    public PageDTO<PayOrderVO> queryAllPayOrders(@RequestParam(defaultValue = "1") Long current,
+                                                  @RequestParam(defaultValue = "10") Long size) {
+        Page<PayOrder> page = payOrderService.lambdaQuery()
+                .orderByDesc(PayOrder::getCreateTime)
+                .page(new Page<>(current, size));
+        return PageDTO.of(page, PayOrderVO.class);
+    }
+
     @ApiOperation("根据id查询支付单")
     @GetMapping("/biz/{id}")
     public PayOrderDTO queryPayOrderByBizOrderNo(@PathVariable("id") Long id){

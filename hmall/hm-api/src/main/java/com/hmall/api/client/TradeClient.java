@@ -1,5 +1,6 @@
 package com.hmall.api.client;
 
+import com.hmall.api.dto.UserOrderInteractionDTO;
 import com.hmall.api.po.Order;
 import com.hmall.api.vo.OrderPayDetailVO;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -7,6 +8,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+
+import java.util.List;
 
 /**
  * ClassName: TradeClient
@@ -31,4 +34,10 @@ public interface TradeClient {
 
     @GetMapping("orders/getPayOrderDetail/{id}")
     OrderPayDetailVO getPayOrderDetail(@PathVariable("id") Long orderId);
+
+    @GetMapping("orders/interactions/me")
+    List<UserOrderInteractionDTO> queryMyOrderInteractions();
+
+    @GetMapping("orders/interactions")
+    List<UserOrderInteractionDTO> queryOrderInteractions();
 }

@@ -27,11 +27,14 @@ import com.hmall.user.service.IUserService;
 import com.hmall.user.utils.JwtTool;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.Duration;
 
 @Slf4j
 @Service
@@ -40,10 +43,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
     private static final String ADMIN_USERNAME = "123";
 
-    private final PasswordEncoder passwordEncoder;
     private final JwtTool jwtTool;
     private final JwtProperties jwtProperties;
     private final AddressMapper addressMapper;
+    private final StringRedisTemplate stringRedisTemplate;
 
     @Override
     public UserLoginVO login(LoginFormDTO loginDTO) {
@@ -59,7 +62,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             throw new BadRequestException("用户名或密码错误");
         }
 
-        String token = jwtTool.createToken(user.getId(), jwtProperties.getTokenTTL());
+        String token = jwtTool.createToken(user.getId(), user.getUsername(), jwtProperties.getTokenTTL());
         return new UserLoginVO()
                 .setUserId(user.getId())
                 .setUsername(user.getUsername())
@@ -99,7 +102,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         user.setUpdateTime(LocalDateTime.now());
         save(user);
 
-        String token = jwtTool.createToken(user.getId(), jwtProperties.getTokenTTL());
+        String token = jwtTool.createToken(user.getId(), user.getUsername(), jwtProperties.getTokenTTL());
         return new UserLoginVO()
                 .setUserId(user.getId())
                 .setUsername(user.getUsername())
@@ -159,6 +162,41 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         targetUser.setBalance(latestBalance);
         targetUser.setUpdateTime(LocalDateTime.now());
         updateById(targetUser);
+    }
+
+    @Override
+    public void changePassword(String oldPassword, String newPassword) {
+        User user = getCurrentUser();
+        if (!user.getPassword().equals(oldPassword)) {
+            throw new BadRequestException("原密码错误");
+        }
+        user.setPassword(newPassword);
+        user.setUpdateTime(LocalDateTime.now());
+        updateById(user);
+    }
+
+    @Override
+    public int sign() {
+        Long userId = UserContext.getUser();
+        String today = LocalDate.now().toString();
+        String signKey = "sign:" + userId + ":" + today;
+
+        Boolean alreadySigned = stringRedisTemplate.hasKey(signKey);
+        if (Boolean.TRUE.equals(alreadySigned)) {
+            throw new BadRequestException("今日已签到，请明天再来");
+        }
+
+        int points = 50;
+        User user = getCurrentUser();
+        user.setBalance(defaultBalance(user.getBalance()) + points);
+        user.setUpdateTime(LocalDateTime.now());
+        updateById(user);
+
+        LocalDateTime endOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MAX);
+        Duration duration = Duration.between(LocalDateTime.now(), endOfDay);
+        stringRedisTemplate.opsForValue().set(signKey, "1", duration);
+
+        return points;
     }
 
     private void updateUserStatus(Long id, UserStatus status) {

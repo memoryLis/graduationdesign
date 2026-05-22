@@ -2,6 +2,7 @@ package com.hmall.user.controller;
 
 import com.hmall.common.domain.PageDTO;
 import com.hmall.common.domain.PageQuery;
+import com.hmall.user.domain.dto.ChangePasswordDTO;
 import com.hmall.user.domain.dto.LoginFormDTO;
 import com.hmall.user.domain.dto.PointRechargeDTO;
 import com.hmall.user.domain.dto.RegisterFormDTO;
@@ -24,6 +25,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @Api(tags = "用户相关接口")
 @RestController
@@ -91,5 +95,29 @@ public class UserController {
     public void rechargePoints(@PathVariable("id") Long id,
                                @RequestBody @Validated PointRechargeDTO rechargeDTO) {
         userService.rechargePoints(id, rechargeDTO);
+    }
+
+    @ApiOperation("修改密码")
+    @PutMapping("/password")
+    public void changePassword(@RequestBody @Validated ChangePasswordDTO dto) {
+        userService.changePassword(dto.getOldPassword(), dto.getNewPassword());
+    }
+
+    @ApiOperation("每日签到")
+    @PostMapping("/sign")
+    public Map<String, Object> sign() {
+        try {
+            int points = userService.sign();
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", true);
+            result.put("points", points);
+            result.put("message", "签到成功，获得" + points + "积分");
+            return result;
+        } catch (Exception e) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", false);
+            result.put("message", e.getMessage());
+            return result;
+        }
     }
 }

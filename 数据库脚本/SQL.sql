@@ -155,3 +155,11 @@ CREATE TABLE IF NOT EXISTS `browse_history` (
                                                 KEY `idx_item_id` (`item_id`),
                                                 KEY `idx_user_item` (`user_id`, `item_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户浏览历史表';
+
+//5.15 用户喜好表
+CREATE TABLE favorite (
+                          id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                          user_id BIGINT NOT NULL,
+                          item_id BIGINT NOT NULL,
+                          create_time DATETIME DEFAULT CURRENT_TIMESTAMP
+);

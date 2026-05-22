@@ -39,6 +39,8 @@ public class BrowseHistoryServiceImpl extends ServiceImpl<BrowseHistoryMapper, B
             BrowseHistory history = new BrowseHistory();
             history.setUserId(userId);
             history.setItemId(itemId);
+            history.setCreateTime(LocalDateTime.now());
+            history.setUpdateTime(LocalDateTime.now());
             save(history);
         }
     }

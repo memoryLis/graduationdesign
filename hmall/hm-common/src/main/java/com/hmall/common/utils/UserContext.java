@@ -2,27 +2,30 @@ package com.hmall.common.utils;
 
 public class UserContext {
     private static final ThreadLocal<Long> tl = new ThreadLocal<>();
+    private static final ThreadLocal<String> usernameTl = new ThreadLocal<>();
 
-    /**
-     * 保存当前登录用户信息到ThreadLocal
-     * @param userId 用户id
-     */
     public static void setUser(Long userId) {
         tl.set(userId);
     }
 
-    /**
-     * 获取当前登录用户信息
-     * @return 用户id
-     */
     public static Long getUser() {
         return tl.get();
     }
 
-    /**
-     * 移除当前登录用户信息
-     */
+    public static void setUsername(String username) {
+        usernameTl.set(username);
+    }
+
+    public static String getUsername() {
+        return usernameTl.get();
+    }
+
+    public static boolean isAdmin() {
+        return "123".equals(usernameTl.get());
+    }
+
     public static void removeUser(){
         tl.remove();
+        usernameTl.remove();
     }
 }

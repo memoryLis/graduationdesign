@@ -2,8 +2,8 @@ import { createRouter, createWebHistory } from "vue-router";
 import MainLayout from "@/layouts/MainLayout.vue";
 import { getStoredUserInfo, isAdminUser } from "@/shared/utils";
 
-const authRequired = ["cart", "order-confirm", "pay", "pay-success", "profile", "my-orders", "admin-items", "admin-users"];
-const adminRequired = ["admin-items", "admin-users"];
+const authRequired = ["cart", "order-confirm", "pay", "pay-success", "profile", "my-orders", "favorites", "admin-items", "admin-users", "admin-orders"];
+const adminRequired = ["admin-items", "admin-users", "admin-orders"];
 
 const router = createRouter({
   history: createWebHistory(),
@@ -66,9 +66,19 @@ const router = createRouter({
           component: () => import("@/features/admin/views/ItemManageView.vue")
         },
         {
+          path: "favorites",
+          name: "favorites",
+          component: () => import("@/features/product/views/FavoritesView.vue")
+        },
+        {
           path: "admin/users",
           name: "admin-users",
           component: () => import("@/features/admin/views/UserManageView.vue")
+        },
+        {
+          path: "admin/orders",
+          name: "admin-orders",
+          component: () => import("@/features/admin/views/OrderManageView.vue")
         }
       ]
     },

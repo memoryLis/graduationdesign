@@ -3,6 +3,16 @@ server:
 spring:
   application:
     name: user-service
+  redis:
+    host: 192.168.40.66
+    port: 6379
+    database: 0
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 2
+        max-wait: 100ms
   profiles:
     active: dev
   datasource:
