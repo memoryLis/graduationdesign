@@ -1,0 +1,1 @@
+import{k as d}from"./index-BDuEyppj.js";function r(){return d.get("/addresses")}function t(s){return d.post("/addresses/addAddress",s)}function a(s){return d.post("/addresses/updateAddress",s)}export{t as a,r as f,a as u};
