@@ -16,11 +16,14 @@ import com.hmall.pay.service.IPayOrderService;
 import com.hmall.pay.enums.PayStatus;
 import com.hmall.pay.mapper.PayOrderMapper;
 import lombok.RequiredArgsConstructor;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
 
 /**
  * <p>
@@ -33,9 +36,10 @@ import java.time.LocalDateTime;
 @Service
 @RequiredArgsConstructor
 public class PayOrderServiceImpl extends ServiceImpl<PayOrderMapper, PayOrder> implements IPayOrderService {
-     private final  TradeClient tradeClient;
+    private final TradeClient tradeClient;
     private final UserClient userClient;
-   private final RabbitTemplate rabbitTemplate;
+    private final RabbitTemplate rabbitTemplate;
+    private final RedissonClient redissonClient;
     @Override
     public String applyPayOrder(PayApplyDTO applyDTO) {
         // 1.幂等性校验
@@ -45,26 +49,43 @@ public class PayOrderServiceImpl extends ServiceImpl<PayOrderMapper, PayOrder> i
     }
 
     @Override
-    @Transactional //应该使用seata
+    @Transactional
     public void tryPayOrderByBalance(PayOrderFormDTO payOrderFormDTO) {
         // 1.查询支付单
         PayOrder po = getById(payOrderFormDTO.getId());
         // 2.判断状态
         if(!PayStatus.WAIT_BUYER_PAY.equalsValue(po.getStatus())){
-            // 订单不是未支付，状态异常
-            throw new BizIllegalException("交易已支付或关闭！");
-         }
-        // 3.尝试扣减余额
-        userClient.deductMoney(payOrderFormDTO.getPw(), po.getAmount());
-        // 4.修改支付单状态
-        boolean success = markPayOrderSuccess(payOrderFormDTO.getId(), LocalDateTime.now());
-        if (!success) {
             throw new BizIllegalException("交易已支付或关闭！");
         }
-        //5 修改订单状态
-        rabbitTemplate.convertAndSend("pay.direct", "pay.success",po.getBizOrderNo());
-
-
+        // 3.分布式锁防重：对同一笔支付单加锁，防止并发重复支付
+        String lockKey = "pay_order:" + payOrderFormDTO.getId();
+        RLock lock = redissonClient.getLock(lockKey);
+        try {
+            if (!lock.tryLock(10, 30, TimeUnit.SECONDS)) {
+                throw new BizIllegalException("支付处理中，请稍后再试！");
+            }
+            // 4.获取锁后重新查询状态（双重检查）
+            po = getById(payOrderFormDTO.getId());
+            if(!PayStatus.WAIT_BUYER_PAY.equalsValue(po.getStatus())){
+                throw new BizIllegalException("交易已支付或关闭！");
+            }
+            // 5.尝试扣减余额
+            userClient.deductMoney(payOrderFormDTO.getPw(), po.getAmount());
+            // 6.修改支付单状态
+            boolean success = markPayOrderSuccess(payOrderFormDTO.getId(), LocalDateTime.now());
+            if (!success) {
+                throw new BizIllegalException("交易已支付或关闭！");
+            }
+            // 7.修改订单状态
+            rabbitTemplate.convertAndSend("pay.direct", "pay.success", po.getBizOrderNo());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new BizIllegalException("支付处理中断！");
+        } finally {
+            if (lock.isHeldByCurrentThread()) {
+                lock.unlock();
+            }
+        }
     }
 
     /**

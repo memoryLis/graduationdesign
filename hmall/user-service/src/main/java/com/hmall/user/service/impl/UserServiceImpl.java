@@ -4,6 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hmall.common.domain.PageDTO;
 import com.hmall.common.domain.PageQuery;
 import com.hmall.common.exception.BadRequestException;
@@ -27,6 +28,7 @@ import com.hmall.user.service.IUserService;
 import com.hmall.user.utils.JwtTool;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
@@ -47,6 +49,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     private final JwtProperties jwtProperties;
     private final AddressMapper addressMapper;
     private final StringRedisTemplate stringRedisTemplate;
+    private final ObjectMapper objectMapper;
+
 
     @Override
     public UserLoginVO login(LoginFormDTO loginDTO) {
@@ -63,6 +67,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
 
         String token = jwtTool.createToken(user.getId(), user.getUsername(), jwtProperties.getTokenTTL());
+        String userJson = null;
+        try {
+             userJson = objectMapper.writeValueAsString(user);
+        }catch (Exception e){
+            log.error("序列化用户信息失败");
+        }
+
+        stringRedisTemplate.opsForValue().set("user:" + user.getId(), userJson, jwtProperties.getTokenTTL());
+        
         return new UserLoginVO()
                 .setUserId(user.getId())
                 .setUsername(user.getUsername())

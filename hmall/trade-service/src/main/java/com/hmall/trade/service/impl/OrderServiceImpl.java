@@ -133,16 +133,18 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
 
         if (CollUtils.isNotEmpty(normalDetails)) {
             try {
+                //扣减库存
                 itemClient.deductStock(normalDetails);
             } catch (Exception e) {
                 throw new RuntimeException("库存不足", e);
             }
         }
-
+          // 清除购物车，发送延迟消息
         sendCartClearMessage(userId, itemIds);
         if (CollUtils.isNotEmpty(hotDetails)) {
             sendHotStockSyncMessage(order.getId(), hotDetails);
         }
+
 
         return order.getId();
     }
